@@ -1,0 +1,8 @@
+{
+  "name": "StratArchitect - Analysis Blueprint Engine",
+  "description": "A high-precision system for generating machine-readable business analysis blueprints from proprietary strategic frameworks. Designed for AI system architects and strategic designers.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
