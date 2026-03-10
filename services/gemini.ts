@@ -5,6 +5,99 @@ import { STRATEGIC_CORE } from "./strategicCore";
 
 const API_KEY = process.env.API_KEY || "";
 
+export interface ValidationResult {
+  isValid: boolean;
+  score: number;
+  feedback: string[];
+  correctedBlueprint?: AnalysisBlueprint;
+}
+
+export const validateBlueprint = async (blueprint: AnalysisBlueprint): Promise<ValidationResult> => {
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  
+  const prompt = `
+    TASK: Validate the following Business Analysis Blueprint against foundational strategic rules and industry standards.
+    
+    FOUNDATIONAL STRATEGIC CORE:
+    - FRAMEWORKS: ${STRATEGIC_CORE.copywritingFrameworks}
+    - FUNNELS: ${STRATEGIC_CORE.funnelLogics}
+    - PSYCHOLOGY: ${STRATEGIC_CORE.personaPsychology}
+    
+    BLUEPRINT TO VALIDATE:
+    ${JSON.stringify(blueprint, null, 2)}
+    
+    INSTRUCTIONS:
+    1. Check if the blueprint logically incorporates the foundational strategic core.
+    2. Verify that the steps are logically sequenced and unambiguous.
+    3. Ensure industry standards for business analysis are met.
+    4. Score the blueprint from 0 to 100 based on quality and adherence to rules.
+    5. If the score is below 80, provide a corrected version of the blueprint.
+    6. Provide specific feedback on what is good and what needs improvement.
+  `;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          isValid: { type: Type.BOOLEAN, description: "True if score is 80 or above" },
+          score: { type: Type.NUMBER, description: "Score from 0 to 100" },
+          feedback: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Specific feedback points" },
+          correctedBlueprint: {
+            type: Type.OBJECT,
+            description: "Provide a corrected blueprint if isValid is false",
+            properties: {
+              metadata: {
+                type: Type.OBJECT,
+                properties: {
+                  analysisName: { type: Type.STRING },
+                  strategyVersion: { type: Type.STRING },
+                  applicableIndustries: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  applicableRegions: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  requiredBusinessInputs: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  requiredExternalDataTypes: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  analysisComplexityLevel: { type: Type.STRING },
+                  estimatedAnalysisDepth: { type: Type.STRING },
+                  dependencies: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  constraints: { type: Type.ARRAY, items: { type: Type.STRING } },
+                },
+              },
+              steps: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    stepId: { type: Type.STRING },
+                    stepName: { type: Type.STRING },
+                    purpose: { type: Type.STRING },
+                    requiredInputs: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    dataSources: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    processingLogic: { type: Type.STRING },
+                    expectedIntermediateOutput: { type: Type.STRING },
+                    validationRules: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    conditionsToProceed: { type: Type.STRING },
+                  },
+                }
+              }
+            }
+          }
+        },
+        required: ["isValid", "score", "feedback"]
+      }
+    }
+  });
+
+  try {
+    return JSON.parse(response.text || "{}") as ValidationResult;
+  } catch (error) {
+    console.error("Failed to parse validation JSON", error);
+    throw new Error("Invalid validation format returned from API.");
+  }
+};
+
 export const generateBlueprint = async (context: BusinessContext): Promise<AnalysisBlueprint> => {
   const ai = new GoogleGenAI({ apiKey: API_KEY });
   

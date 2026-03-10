@@ -18,6 +18,7 @@ const Chat: React.FC<ChatProps> = ({ blueprint }) => {
     const instruction = `You are an expert Strategic Framework Designer. 
     ${blueprint ? `Current Blueprint Loaded: ${JSON.stringify(blueprint.metadata)}` : "No blueprint loaded yet."}
     Help the user refine their strategy, explain complex logic, or plan data sourcing for their business analysis blueprint.
+    Specifically, focus on identifying potential ambiguities in processing logic, suggesting clearer data transformations, and ensuring the framework's steps are logically sound and unambiguous.
     DO NOT ANALYZE ACTUAL BUSINESSES. Stay focused on STRATEGY ARCHITECTURE.`;
     
     chatRef.current = createChatSession(instruction);

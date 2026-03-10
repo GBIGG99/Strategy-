@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { generateBlueprint } from '../services/gemini';
+import { generateBlueprint, validateBlueprint } from '../services/gemini';
 import { AnalysisBlueprint, BusinessContext } from '../types';
 
 interface StrategyUploadProps {
@@ -15,19 +15,38 @@ const ContextSetup: React.FC<StrategyUploadProps> = ({ onBlueprintGenerated }) =
     situation: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationFeedback, setValidationFeedback] = useState<string[]>([]);
 
   const handleProcess = async () => {
     if (!context.name || !context.industry) return;
     setIsLoading(true);
+    setIsValidating(false);
     setError(null);
+    setValidationFeedback([]);
     try {
-      const blueprint = await generateBlueprint(context);
-      onBlueprintGenerated(blueprint);
+      let blueprint = await generateBlueprint(context);
+      
+      setIsValidating(true);
+      const validation = await validateBlueprint(blueprint);
+      
+      if (!validation.isValid && validation.correctedBlueprint) {
+        blueprint = validation.correctedBlueprint;
+      }
+      
+      setValidationFeedback(validation.feedback);
+      
+      // Add a slight delay so the user can see the validation feedback before transitioning
+      setTimeout(() => {
+        onBlueprintGenerated(blueprint);
+      }, 2000);
+      
     } catch (err: any) {
       setError(err.message || 'An error occurred during blueprint generation.');
     } finally {
       setIsLoading(false);
+      setIsValidating(false);
     }
   };
 
@@ -103,6 +122,17 @@ const ContextSetup: React.FC<StrategyUploadProps> = ({ onBlueprintGenerated }) =
             </div>
           )}
 
+          {validationFeedback.length > 0 && (
+            <div className="p-4 bg-blue-900/30 border border-blue-500/50 text-blue-300 rounded-lg text-sm space-y-2">
+              <h4 className="font-bold text-blue-400 text-xs uppercase tracking-wider">Validation Feedback</h4>
+              <ul className="list-disc pl-4 space-y-1">
+                {validationFeedback.map((feedback, idx) => (
+                  <li key={idx}>{feedback}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <button
             onClick={handleProcess}
             disabled={isLoading || !context.name || !context.industry}
@@ -115,7 +145,7 @@ const ContextSetup: React.FC<StrategyUploadProps> = ({ onBlueprintGenerated }) =
             {isLoading ? (
               <>
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                Blending Core Strategy...
+                {isValidating ? 'Validating against Strategic Core...' : 'Blending Core Strategy...'}
               </>
             ) : (
               'Generate Strategic Blueprint'
